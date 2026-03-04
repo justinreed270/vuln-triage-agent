@@ -21,7 +21,7 @@ python main.py 127.0.0.1
 ```
 
 ```
-🔍 Starting vulnerability triage for: 127.0.0.1
+ Starting vulnerability triage for: 127.0.0.1
 
   [PLANNER] Next action: run_nmap
   [NMAP] Completed scan of 127.0.0.1
@@ -31,13 +31,13 @@ python main.py 127.0.0.1
   [REPORT] Final report generated
   [PLANNER] Next action: done
 
-📄 Markdown saved: reports/report_127_0_0_1_20260304_0448.md
-📄 PDF saved:      reports/report_127_0_0_1_20260304_0448.pdf
+ Markdown saved: reports/report_127_0_0_1_20260304_0448.md
+ PDF saved:      reports/report_127_0_0_1_20260304_0448.pdf
 ```
 
 Findings include real CVEs with CVSS scores pulled live from the NIST NVD API. Reports are saved automatically to a `/reports` folder that creates itself on first run.
 
-> ⚠️ Only scan targets you have explicit permission to scan. `scanme.nmap.org` is provided by Nmap for legal testing.
+> !!! >> Only scan targets you have explicit permission to scan. `scanme.nmap.org` is provided by Nmap for legal testing.
 
 ---
 

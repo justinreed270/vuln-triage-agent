@@ -81,7 +81,7 @@ This is the same planner-executor pattern used in production agentic systems. Th
 **Prerequisites:** Python 3.10+, [Ollama](https://ollama.com), [Nmap](https://nmap.org/download.html) in PATH
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/vuln-triage-agent
+git clone https://github.com/justinreed270/vuln-triage-agent.git
 cd vuln-triage-agent
 python -m venv venv
 venv\Scripts\activate        # Windows

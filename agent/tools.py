@@ -40,7 +40,7 @@ Example output: ["OpenSSH 6.6.1", "Apache httpd 2.4.7"]
 {scan_results}"""
     )
 
-    import json, requests
+
     try:
         services_to_search = json.loads(response.content.strip())
     except Exception:
@@ -95,7 +95,11 @@ Write the report with these sections:
 4. Recommended Remediation Steps
 5. Risk Rating (Critical/High/Medium/Low) with justification
 
-Be specific and actionable."""
+Be specific and actionable.
+
+Do not use markdown tables. Use plain text lists instead.
+
+"""
 
     response = llm.invoke(prompt)
     messages.append("[REPORT] Final report generated")

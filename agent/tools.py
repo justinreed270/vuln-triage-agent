@@ -1,0 +1,102 @@
+# agent/tools.py
+import subprocess
+import requests
+import json
+
+def run_nmap(state: dict) -> dict:
+    """Node: runs a basic nmap service scan against the target."""
+    target = state["target"]
+    messages = state.get("messages", [])
+    
+    try:
+        # -sV = service version detection, -T4 = faster timing, --open = only open ports
+        result = subprocess.run(
+            ["nmap", "-sV", "-T4", "--open", target],
+            capture_output=True, text=True, timeout=120
+        )
+        scan_output = result.stdout if result.stdout else result.stderr
+    except FileNotFoundError:
+        scan_output = "ERROR: nmap not found. Install nmap and ensure it's in your PATH."
+    except subprocess.TimeoutExpired:
+        scan_output = "ERROR: nmap scan timed out after 120 seconds."
+    
+    messages.append(f"[NMAP] Completed scan of {target}")
+    return {"scan_results": scan_output, "messages": messages}
+
+
+def lookup_cves(state: dict) -> dict:
+    from langchain_ollama import ChatOllama
+    
+    llm = ChatOllama(model="llama3.1:8b", base_url="http://localhost:11434")
+    messages = state.get("messages", [])
+    scan_results = state.get("scan_results", "")
+
+    # Let the LLM extract clean search terms instead of regex
+    response = llm.invoke(
+f"""Extract service names and versions from this nmap output.
+Respond with ONLY a JSON array of strings, no explanation, no markdown, no code fences.
+Example output: ["OpenSSH 6.6.1", "Apache httpd 2.4.7"]
+
+{scan_results}"""
+    )
+
+    import json, requests
+    try:
+        services_to_search = json.loads(response.content.strip())
+    except Exception:
+        services_to_search = []
+
+    cve_findings = []
+    for service in services_to_search[:5]:
+        try:
+            resp = requests.get(
+                "https://services.nvd.nist.gov/rest/json/cves/2.0",
+                params={"keywordSearch": service, "resultsPerPage": 3},
+                timeout=10
+            )
+            if resp.status_code == 200:
+                for v in resp.json().get("vulnerabilities", []):
+                    cve = v["cve"]
+                    cve_id = cve.get("id", "Unknown")
+                    desc = next((d["value"] for d in cve.get("descriptions", []) if d["lang"] == "en"), "")
+                    metrics = cve.get("metrics", {})
+                    score = "N/A"
+                    if "cvssMetricV31" in metrics:
+                        score = metrics["cvssMetricV31"][0]["cvssData"]["baseScore"]
+                    cve_findings.append(f"{cve_id} (CVSS: {score}): {desc[:200]}")
+        except Exception as e:
+            cve_findings.append(f"Lookup failed for '{service}': {str(e)}")
+
+    cve_output = "\n".join(cve_findings) if cve_findings else "No CVEs found."
+    messages.append(f"[CVE LOOKUP] Found {len(cve_findings)} potential vulnerabilities")
+    return {"cve_results": cve_output, "messages": messages}
+
+def write_report(state: dict) -> dict:
+    """Node: asks the LLM to synthesize everything into a findings report."""
+    from langchain_ollama import ChatOllama
+    
+    llm = ChatOllama(model="llama3.1:8b", base_url="http://localhost:11434")
+    messages = state.get("messages", [])
+    
+    prompt = f"""You are a security analyst. Write a professional vulnerability triage report based on the following data.
+
+TARGET: {state['target']}
+
+NMAP SCAN RESULTS:
+{state.get('scan_results', 'No scan data')}
+
+CVE FINDINGS:
+{state.get('cve_results', 'No CVE data')}
+
+Write the report with these sections:
+1. Executive Summary (2-3 sentences)
+2. Open Ports & Services
+3. Vulnerability Findings (with severity ratings)
+4. Recommended Remediation Steps
+5. Risk Rating (Critical/High/Medium/Low) with justification
+
+Be specific and actionable."""
+
+    response = llm.invoke(prompt)
+    messages.append("[REPORT] Final report generated")
+    return {"report": response.content, "messages": messages}

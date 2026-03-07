@@ -18,6 +18,7 @@ The design choice to run locally matters: sensitive target data never leaves the
 
 ```
 python main.py 127.0.0.1
+
 ```
 
 ```
@@ -32,28 +33,29 @@ python main.py 127.0.0.1
   [PLANNER] Next action: done
 
  Markdown saved: reports/report_127_0_0_1_20260304_0448.md
- PDF saved:      reports/report_127_0_0_1_20260304_0448.pdf
 ```
 
 Findings include real CVEs with CVSS scores pulled live from the NIST NVD API. Reports are saved automatically to a `/reports` folder that creates itself on first run.
 
-> !!! >> Only scan targets you have explicit permission to scan. `scanme.nmap.org` is provided by Nmap for legal testing.
+> **Warning:** Only scan targets you have explicit permission to scan. `scanme.nmap.org` is provided by Nmap for legal testing.
 
 ---
 
 ## Architecture
 
-The agent runs a planner-executor loop. There is no hardcoded execution order.
+The agent runs a planner-executor loop. There is no hardcoded execution order — routing is driven by the planner prompt.
 
 ```
 [START] → [Planner] ──→ [Nmap Scan]    ──┐
-                  ↑──→ [CVE Lookup]   ──┤→ [Planner] → ... → [END]
+                  ↑──→ [CVE Lookup]    ──┤→ [Planner] → ... → [END]
                   └──→ [Report Writer] ──┘
 ```
 
 After every tool completes, control returns to the planner. The LLM reads the current state — what's been done, what hasn't — and decides what to call next. When everything is done, it routes to END.
 
 This is the same planner-executor pattern used in production agentic systems. The tools are interchangeable; the loop is not specific to security work.
+
+> The current planner prompt produces deterministic ordering — nmap, then CVE lookup, then report. The graph wiring does not enforce this; the prompt does. To bypass the scan entirely, pre-populate scan_results in initial_state with existing nmap output. The planner will detect it and route directly to CVE lookup. 
 
 **State** is a shared TypedDict passed between every node. Each node reads from it and writes back to it. No node communicates directly with another.
 
@@ -65,14 +67,14 @@ This is the same planner-executor pattern used in production agentic systems. Th
 
 ## Stack
 
-| Component | Tool |
-|---|---|
-| Agent framework | LangGraph |
-| LLM backend | Ollama (local) |
-| Model | Llama 3.1 8B |
-| Network scanning | Nmap |
-| CVE data | NIST NVD API (free, unauthenticated) |
-| Hardware | RTX 3090 24GB (Thunderbolt 4 eGPU) |
+| Component        | Tool                                 |
+| ---------------- | ------------------------------------ |
+| Agent framework  | LangGraph                            |
+| LLM backend      | Ollama (local)                       |
+| Model            | Llama 3.1 8B                      |
+| Network scanning | Nmap                                 |
+| CVE data         | NIST NVD API (free, unauthenticated) |
+| Hardware         | RTX 3060 Ti 8GB (Thunderbolt 4 eGPU) |
 
 ---
 
@@ -85,7 +87,7 @@ git clone https://github.com/justinreed270/vuln-triage-agent.git
 cd vuln-triage-agent
 python -m venv venv
 venv\Scripts\activate        # Windows
-pip install langgraph langchain-ollama langchain-core requests fpdf2
+pip install -r requirements.txt
 ollama pull llama3.1:8b
 ```
 
@@ -96,26 +98,33 @@ python main.py 192.168.1.1        # scan a network target
 python main.py scanme.nmap.org    # scan Nmap's legal test host
 ```
 
-Reports are saved to `/reports` as `.md` and `.pdf`. Delete the folder to clear all reports — it recreates itself on the next run.
+Reports are saved to `/reports` as `.md`. Delete the folder to clear all reports — it recreates itself on the next run.
 
 ---
 
 ## Known Issues
 
-**PDF rendering** — fpdf2 occasionally drops report body content when the LLM output contains complex markdown patterns (nested bold, numbered lists with inline formatting). The `.md` file always renders correctly and can be exported to PDF via VS Code, Pandoc, or any markdown viewer. PDF output is a known iteration item.
+
 
 **NVD rate limiting** — without an API key, NIST NVD limits requests to 5 per 30 seconds. The agent caps lookups at 5 services per run. Register for a [free NVD API key](https://nvd.nist.gov/developers/request-an-api-key) and add it as a header to remove this constraint.
 
 **CVE relevance** — the agent retrieves CVEs based on keyword search, not fingerprint matching. Some returned CVEs may not apply to the specific version detected. Results should be verified before acting on them.
+
+**Subnet scanning** — CIDR notation is supported (e.g. 192.168.1.0/24) but results are degraded. The default nmap timeout of 120 seconds is insufficient to fingerprint service versions across a full subnet. Without version data, the CVE lookup has no search terms and returns zero findings. The report will reflect real host and port discovery but vulnerability analysis will be incomplete. For subnet scans, increase the timeout in tools.py and expect longer run times. Single target scanning is the validated use case.
 
 ---
 
 ## What's Next
 
 - Replace keyword-based CVE lookup with `bind_tools()` structured tool calling — the LLM generates precise search parameters rather than free-text queries
-- Add LangGraph checkpointing so long scans can resume after interruption
+- Add LangGraph check points so long scans can resume after interruption
 - Expand tool nodes: Shodan lookup, banner grabbing, threat intel feeds
-- Fix PDF rendering by pre-processing LLM output into clean plain text before passing to fpdf2
+- PDF output — current reports render as Markdown; convert via Obsidian or any Markdown viewer
+- Improve subnet scanning — increase timeout handling and version detection reliability across large ranges
+- Perimeter scanning — extend agent to enumerate external attack surface
+- Web UI — browser-based interface to submit targets and view reports
+
+
 
 ---
 

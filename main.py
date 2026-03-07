@@ -37,7 +37,10 @@ def run_triage(target: str):
     
     from datetime import datetime
     os.makedirs("reports", exist_ok=True)
-    filename_base = f"reports/report_{target.replace('.','_')}_{datetime.now().strftime('%Y%m%d_%H%M')}"
+    #filename_base = f"reports/report_{target.replace('.','_')}_{datetime.now().strftime('%Y%m%d_%H%M')}"
+
+    safe_target = target.replace('.', '_').replace('/', '_')
+    filename_base = f"reports/report_{safe_target}_{datetime.now().strftime('%Y%m%d_%H%M')}"
 
     with open(f"{filename_base}.md", "w") as f:
         f.write(f"# Vulnerability Triage Report\n**Target:** {target}\n\n")

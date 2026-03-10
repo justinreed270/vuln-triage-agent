@@ -17,7 +17,7 @@ The design choice to run locally matters: sensitive target data never leaves the
 ## Demo
 
 ```
-python main.py 127.0.0.1
+python src\main.py 127.0.0.1
 
 ```
 
@@ -93,9 +93,9 @@ ollama pull llama3.1:8b
 
 **Run:**
 ```bash
-python main.py 127.0.0.1          # scan localhost
-python main.py 192.168.1.1        # scan a network target
-python main.py scanme.nmap.org    # scan Nmap's legal test host
+python src\main.py 127.0.0.1          # scan localhost
+python src\main.py 192.168.1.1        # scan a network target
+python src\main.py scanme.nmap.org    # scan Nmap's legal test host
 ```
 
 Reports are saved to `/reports` as `.md`. Delete the folder to clear all reports — it recreates itself on the next run.

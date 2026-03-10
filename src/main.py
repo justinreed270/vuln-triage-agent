@@ -55,15 +55,3 @@ if __name__ == "__main__":
     import sys
     target = sys.argv[1] if len(sys.argv) > 1 else "127.0.0.1"
     run_triage(target)
-"""
-Your folder structure should look like this:
-
-vuln-triage-agent/
-├── main.py
-├── agent/
-│   ├── __init__.py   ← empty file, makes it a package
-│   ├── state.py
-│   ├── planner.py
-│   ├── tools.py
-│   └── graph.py
-"""

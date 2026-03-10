@@ -6,8 +6,6 @@ report_*.pdf
 .\reports\report_*
 .env
 notes.md
-code_walkthrough.docx
-project_explainer.docx
 reports/
 src/__pycache__/
 tests/__pycache__/
